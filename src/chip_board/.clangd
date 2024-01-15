@@ -1,0 +1,5 @@
+CompileFlags:
+    Remove:
+        - "mthumb-interwork"
+    Add:
+        - "-IC:/msys64/ucrt64/arm-none-eabi/include"

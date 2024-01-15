@@ -1,0 +1,20 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/beta/liv_syn/devel/lib/python3/dist-packages",
+        "/home/beta/installed/ws_livox/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        "/path/to/SuperGluePretrainedNetwork",
+        "/path/to/SuperGluePretrainedNetwork"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/beta/liv_syn/devel/lib/python3/dist-packages",
+        "/home/beta/installed/ws_livox/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        "/path/to/SuperGluePretrainedNetwork",
+        "/path/to/SuperGluePretrainedNetwork"
+    ],
+    "files.associations": {
+        "thread": "cpp",
+        "chrono": "cpp"
+    }
+}
