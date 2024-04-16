@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
                 this_frame_ns -= (trans_cam + exp_cam);
 
                 mu.lock(); // 上锁
-                long last_diff = last_frame_ns - gps_ns;
+                long last_diff_a = last_frame_ns - gps_ns;
                 long this_diff = this_frame_ns - gps_ns;
                 long this_diff_a = abs(this_diff);
                 // ROS_ERROR("between two frame time %ld",

@@ -84,15 +84,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 ## make sure the livox_sdk_static library is installed
 
-	include_directories(
-		./
-		${CMAKE_CURRENT_SOURCE_DIR}/livox_sdk/sdk_core/include
-	)
+include_directories(
+	./
+	${CMAKE_CURRENT_SOURCE_DIR}/livox_sdk/sdk_core/include
+)
 
-	link_directories(
-		./
-		${CMAKE_CURRENT_SOURCE_DIR}/livox_sdk/build/sdk_core
-	)
+link_directories(
+	./
+	${CMAKE_CURRENT_SOURCE_DIR}/livox_sdk/build/sdk_core
+)
 
 ## PCL library
 link_directories(${PCL_LIBRARY_DIRS})

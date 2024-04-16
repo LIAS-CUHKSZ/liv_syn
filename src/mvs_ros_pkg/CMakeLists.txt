@@ -29,7 +29,6 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -38,17 +37,9 @@ link_directories(
   /opt/MVS/lib/64
 )
 
-add_executable(grabImg src/grab.cpp)
 add_executable(grabImgWithTrigger src/grab_trigger.cpp)
-add_executable(Trigger_Image src/Trigger_Image.cpp)
 
-target_link_libraries(
-  grabImg
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
-  -lMvCameraControl
-  -lpthread
-)
+
 target_link_libraries(
   grabImgWithTrigger
   ${catkin_LIBRARIES}
@@ -56,17 +47,3 @@ target_link_libraries(
   -lMvCameraControl
   -lpthread
 )
-
-target_link_libraries(
-  Trigger_Image
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
-  -lMvCameraControl
-  -lpthread
-)
-
-add_executable(parse_type_time src/parse_type.cpp)
-target_link_libraries(parse_type_time ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-
-add_executable(parse_topic_time src/parse_topic.cpp)
-target_link_libraries(parse_topic_time ${catkin_LIBRARIES} ${PCL_LIBRARIES})
