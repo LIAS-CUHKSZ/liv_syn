@@ -40,16 +40,16 @@ std::string CameraName;
 float resize_divider;
 
 // for time sync
-int pps_comp = 0;            // 补偿串口传输延迟,ns
-int exp_cam = 0;             // 补偿相机曝光延迟,ns
-int trans_cam = 0;           // 相机采集和传输延迟,ns
-int frame_cnt = 0;           // cam总帧数
-bool update_flag = false;    // gps时间是否更新
+int pps_comp = 0;                // 补偿串口传输延迟,ns
+int exp_cam = 0;                 // 补偿相机曝光延迟,ns
+int trans_cam = 0;               // 相机采集和传输延迟,ns
+int frame_cnt = 0;               // cam总帧数
+bool update_flag = false;        // gps时间是否更新
 bool first_aligned_flag = false; // 是否完成第一次对齐
-int lost_cnt = 0;            // cam的丢帧数
-int per_PPS_cnt = 0;         // 当前PPS之后已经收到的帧数
+int lost_cnt = 0;                // cam的丢帧数
+int per_PPS_cnt = 0;             // 当前PPS之后已经收到的帧数
 long align_thre = 45000000; // 用于判断gps和cam是否足够接近,pc time,ns
-int64_t gps_t = 0;   // gps绝对时间,ns since epoch
+int64_t gps_t = 0;          // gps绝对时间,ns since epoch
 std::mutex mu;
 // 上一帧相机采集pc time和gps time
 long gps_ns, last_frame_ns;
@@ -89,27 +89,26 @@ void queryTimeLoop() {
     // 高频率查看是否收到新的GPS时间戳
     ROS_INFO("init query");
     while (true) {
-        if (mu.try_lock() )
-        {if(gps_t != pointt->gps_tt) {
-            // 更新gps接收时的pc时间,cast to ns
-            ROS_WARN("time update!!!");
-            gps_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         pointt->pc_tt.time_since_epoch())
-                         .count();
-            gps_ns -= pps_comp; // 补偿串口传输延迟和进程通信/调度延迟
-            // 更新gps时间戳
-            gps_t = pointt->gps_tt; // utc time
-            ROS_INFO("update %ld",gps_t);
+        if (mu.try_lock()) {
+            if (gps_t != pointt->gps_tt) {
+                // 更新gps接收时的pc时间,cast to ns
+                ROS_WARN("time update!!!");
+                gps_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             pointt->pc_tt.time_since_epoch())
+                             .count();
+                gps_ns -= pps_comp; // 补偿串口传输延迟和进程通信/调度延迟
+                // 更新gps时间戳
+                gps_t = pointt->gps_tt; // utc time
+                ROS_INFO("update %ld", gps_t);
 
-            update_flag = true;
-            
-            first_aligned_flag = true;
+                update_flag = true;
+
+                first_aligned_flag = true;
+                mu.unlock();
+                // 等待下一秒
+                std::this_thread::sleep_for(std::chrono::milliseconds(800));
+            }
             mu.unlock();
-            // 等待下一秒
-            std::this_thread::sleep_for(std::chrono::milliseconds(800));
-
-        }
-        mu.unlock();
         }
         // ROS_INFO("nothing changes, try later");
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -249,9 +248,8 @@ int main(int argc, char **argv) {
 
     pub = it.advertise(pub_topic, 1);
 
-    int fd = open("/home/beta/tt", O_CREAT | O_RDWR , 0777);
-    if(fd == -1)
-    {
+    int fd = open("/home/beta/tt", O_CREAT | O_RDWR, 0777);
+    if (fd == -1) {
         ROS_ERROR("failed to open share mm");
     }
     pointt = (my_t *)mmap(NULL, sizeof(my_t), PROT_READ | PROT_WRITE,
@@ -381,12 +379,9 @@ int main(int argc, char **argv) {
         // t.join();
         ROS_INFO("wariting first align...");
         // 等待第一次时间消息到来
-        while (true)
-        {
-            if(mu.try_lock())
-            {
-                if(first_aligned_flag)
-                {
+        while (true) {
+            if (mu.try_lock()) {
+                if (first_aligned_flag) {
                     ROS_INFO("begin acquisition!");
                     mu.unlock();
                     break;
@@ -396,7 +391,7 @@ int main(int argc, char **argv) {
             ROS_INFO("waiting lidar reready");
             ros::Duration(0.01).sleep();
         }
-            
+
         /*
          *  采集图像的循环, core code begins here
          */
@@ -419,7 +414,9 @@ int main(int argc, char **argv) {
                 mu.lock(); // 上锁
                 long last_diff = last_frame_ns - gps_ns;
                 long this_diff = this_frame_ns - gps_ns;
-                // ROS_ERROR("between two frame time %ld", this_frame_ns-last_frame_ns);
+                long this_diff_a = abs(this_diff);
+                // ROS_ERROR("between two frame time %ld",
+                // this_frame_ns-last_frame_ns);
 
                 // 如果发现GPS时间发生了更新
                 if (update_flag) {
@@ -428,24 +425,25 @@ int main(int argc, char **argv) {
                     // 分别计算当前帧和上一帧与gps时间的差值，找到最近的那个
                     int incre = 0;
                     bool alinged_flag = false;
-                    if (last_diff <= this_diff) {
+                    if (last_diff_a <= this_diff_a) {
                         // last frame is the aligned frame
-                        if (abs(last_diff) < align_thre) {
-                            incre = 1; // 当前帧对齐之后的第二帧
+                        if (last_diff_a < align_thre) {
+                            incre = 1; // 现在是当前帧对齐之后的第二帧
                             alinged_flag = true;
                         }
-                    } else if (last_diff > this_diff)
+                    } else if (last_diff_a > this_diff_a)
                         // this is first frame after aligned
-                        if (abs(this_diff) < align_thre) {
+                        if (this_diff_a < align_thre) {
                             incre = 0; // 对齐之后的第一帧
                             alinged_flag = true;
                         }
+
                     // 如果两帧都距离GPS的pc接收时间不够近,则说明相机丢帧
                     if (!alinged_flag) {
                         // use (this_frame_clk - gps_clk) to calc increment
-                        // 0.05 0.1  10Hz的情况
-                        incre = (this_diff + 500000000) / 1000000000;
-                        ROS_WARN_STREAM("[camera ]Lost when PPS fired " 
+                        // 0.05 0.1  10Hz的情况 四舍五入计算incre
+                        incre = (this_diff + 50000000) / 100000000;
+                        ROS_WARN_STREAM("[camera] Lost frame when PPS fired "
                                         << incre << " frames.");
                         lost_cnt += incre;
                     }
@@ -454,7 +452,7 @@ int main(int argc, char **argv) {
                 } else // 若最近没有发生gps更新
                 {
                     // 通过this_diff 计算这是pps内的第几帧, 四舍五入
-                    int64_t num = (this_diff + 50000000) / 100000000;
+                    int64_t num = (this_diff + 50000000) / 100000000 + 1;
                     // 丢帧判断
                     if (num - per_PPS_cnt > 1) {
                         ROS_WARN_STREAM("[camera] Lost frame between PPS"
@@ -464,7 +462,7 @@ int main(int argc, char **argv) {
                     }
                 }
 
-                // 连续丢帧超过12帧,则认为PPS丢失
+                // 连续丢帧超过12帧,则认为PPS出现丢失
                 if (per_PPS_cnt > 12) {
                     ROS_WARN_STREAM("[GPRMC] GPS PPS lost");
                 }
@@ -476,7 +474,7 @@ int main(int argc, char **argv) {
 
                 mu.unlock(); // 解锁
 
-                ros::Time rcv_time = ros::Time(pub_t_cam/1000000000);
+                ros::Time rcv_time = ros::Time(pub_t_cam / 1000000000);
                 std::string debug_msg =
                     CameraName + " GetOneFrame,nFrameNum[" +
                     std::to_string(stImageInfo.nFrameNum) +
