@@ -1,0 +1,19 @@
+change below:
+
+``` json
+"timesync_config": {
+        "enable_timesync": true,
+        "device_name": "/dev/ttyUSB2",
+        "comm_device_type": 0,
+        "baudrate_index": 6,
+        "parity_index": 0     
+    }
+```
+
+for baud rate lookup table, refer to line 87 of `livox_ros_driver/timesync/user_uart/user_uart.cpp`
+
+make sure the device name is the same as the serial you connect.
+
+if you use a virtual serial port (USB), the name should be `/dev/ttyACMx` where 'x' is the port number.
+
+use `sudo chmod 777 /dev/ttyXXXx` to modify permission first.
