@@ -47,7 +47,7 @@ int frame_cnt = 0;               // cam总帧数
 bool update_flag = false;        // gps时间是否更新
 bool first_aligned_flag = false; // 是否完成第一次对齐
 int lost_cnt = 0;                // cam的丢帧数
-int per_PPS_cnt = 0;             // 当前PPS之后已经收到的帧数
+int after_PPS_cnt = 0;             // 当前PPS之后已经收到的帧数
 long align_thre = 45000000; // 用于判断gps和cam是否足够接近,pc time,ns
 int64_t gps_t = 0;          // gps绝对时间,ns since epoch
 std::mutex mu;
@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
                 this_frame_ns -= (trans_cam + exp_cam);
 
                 mu.lock(); // 上锁
-                long last_diff_a = last_frame_ns - gps_ns;
+                long last_diff_a = abs(last_frame_ns - gps_ns);
                 long this_diff = this_frame_ns - gps_ns;
                 long this_diff_a = abs(this_diff);
                 // ROS_ERROR("between two frame time %ld",
@@ -423,23 +423,24 @@ int main(int argc, char **argv) {
                     // compare the difference between new_gps_clk and
                     // last_frame_clk/this_frame_clk, find the closest one
                     // 分别计算当前帧和上一帧与gps时间的差值，找到最近的那个
+                    // 和pps一同触发的相机帧是**第0帧**
                     int incre = 0;
-                    bool alinged_flag = false;
+                    bool aligned_flag = false;
                     if (last_diff_a <= this_diff_a) {
                         // last frame is the aligned frame
                         if (last_diff_a < align_thre) {
                             incre = 1; // 现在是当前帧对齐之后的第二帧
-                            alinged_flag = true;
+                            aligned_flag = true;
                         }
                     } else if (last_diff_a > this_diff_a)
                         // this is first frame after aligned
                         if (this_diff_a < align_thre) {
                             incre = 0; // 对齐之后的第一帧
-                            alinged_flag = true;
+                            aligned_flag = true;
                         }
 
-                    // 如果两帧都距离GPS的pc接收时间不够近,则说明相机丢帧
-                    if (!alinged_flag) {
+                    // 如果两帧pc时间都距离GPS的pc接收时间不够近,则说明相机丢帧
+                    if (!aligned_flag) {
                         // use (this_frame_clk - gps_clk) to calc increment
                         // 0.05 0.1  10Hz的情况 四舍五入计算incre
                         incre = (this_diff + 50000000) / 100000000;
@@ -447,30 +448,29 @@ int main(int argc, char **argv) {
                                         << incre << " frames.");
                         lost_cnt += incre;
                     }
-                    per_PPS_cnt = incre + 1; // 当前PPS之后已经收到的帧数
+                    after_PPS_cnt = incre; // 当前PPS之后已经收到的帧数-1
                     update_flag = false;
                 } else // 若最近没有发生gps更新
                 {
                     // 通过this_diff 计算这是pps内的第几帧, 四舍五入
-                    int64_t num = (this_diff + 50000000) / 100000000 + 1;
+                    int64_t num = (this_diff + 50000000) / 100000000;
                     // 丢帧判断
-                    if (num - per_PPS_cnt > 1) {
+                    if (num - after_PPS_cnt > 1) {
                         ROS_WARN_STREAM("[camera] Lost frame between PPS"
-                                        << num - per_PPS_cnt << " frames.");
-                    } else {
-                        per_PPS_cnt++;
+                                        << num - after_PPS_cnt << " frames.");
                     }
+                    after_PPS_cnt = num;
                 }
 
-                // 连续丢帧超过12帧,则认为PPS出现丢失
-                if (per_PPS_cnt > 12) {
-                    ROS_WARN_STREAM("[GPRMC] GPS PPS lost");
+                // 连续丢帧超过12帧,则认为PPS/串口报文出现丢失
+                if (after_PPS_cnt > 11) {
+                    ROS_WARN_STREAM("[GPRMC] GPS PPS/serial lost");
                 }
 
                 // 通过(per_PPS_cnt+gps_time_stamp)计算当前帧的时间戳
                 // 同时补偿半曝光时长
                 double pub_t_cam = // 0.1*per_PPS_cnt. 10Hz
-                    per_PPS_cnt * 100000000.0 + gps_t + (double)exp_cam / 2;
+                    after_PPS_cnt * 100000000.0 + gps_t + (double)exp_cam / 2;
 
                 mu.unlock(); // 解锁
 
