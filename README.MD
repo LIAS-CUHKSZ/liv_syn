@@ -17,4 +17,5 @@ cmake .. && cmake --build .
 
 then go back to workspace root, execute `catkin_make`.
 
+This repo is built based on ref from https://github.com/sheng00125/LIV_handhold.
 
